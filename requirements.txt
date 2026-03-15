@@ -1,1 +1,2 @@
 streamlit==1.55.0
+streamlit-code-editor==0.1.22
