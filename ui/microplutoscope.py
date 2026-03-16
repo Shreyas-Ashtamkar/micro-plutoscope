@@ -41,5 +41,5 @@ class App:
         render_output_section()
         
         # Handle sidebar actions
-        if sidebar_actions["new_query"]:
-            st.info("New query created.")
+        if sidebar_actions["new_code"]:
+            st.info("New code created.")

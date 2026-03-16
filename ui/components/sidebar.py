@@ -4,26 +4,34 @@ import streamlit as st
 
 def render_sidebar() -> dict:
     """
-    Render the sidebar with navigation and query management.
+    Render the sidebar with navigation and code management.
     
     Returns:
         dict: User interactions from sidebar
     """
     st.sidebar.title("Menu")
     
-    # Top Section - New Query Button
-    new_query = st.sidebar.button("🆕 New Query", use_container_width=True)
+    # Top Section - New Code Button
+    new_code = st.sidebar.button("🆕 New Code", use_container_width=True)
     
     st.sidebar.divider()
     
-    # Middle Section - Saved Queries
-    st.sidebar.subheader("📁 Saved Queries")
-    st.sidebar.write("No saved queries yet")
+    # Middle Section - Saved Codes
+    st.sidebar.subheader("📁 Saved Codes")
+    st.sidebar.write("No saved codes yet")
     
     st.sidebar.divider()
     
-    # Bottom Section - Recent Queries
-    st.sidebar.subheader("⏱️ Recent Queries")
-    st.sidebar.write("No recent queries yet")
+    # Middle Section - Recent Codes
+    st.sidebar.subheader("⏱️ Recent Codes")
+    st.sidebar.write("No recent codes yet")
     
-    return {"new_query": new_query}
+    st.sidebar.divider()
+    
+    # Bottom Section - Settings
+    st.sidebar.subheader("⚙️ Settings")
+    with st.sidebar.container(border=True, vertical_alignment="bottom"):
+        st.button(".env", key="dot_env", use_container_width=True)
+    
+    
+    return {"new_code": new_code}
