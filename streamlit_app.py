@@ -3,7 +3,7 @@ Micro Plutoscope - Main entry point.
 
 This is the main entry point for the Streamlit application.
 """
-from ui import FrontendMain
+from frontend import FrontendMain
 
 
 def main() -> None:

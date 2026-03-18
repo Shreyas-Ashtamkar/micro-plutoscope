@@ -1,9 +1,10 @@
 """Code editor components for Micro Plutoscope app."""
+from typing import Callable
 import streamlit as st
 from code_editor import code_editor
 
 
-def render_code_editor(callback_executer:function = lambda:None) -> tuple[str, str, str, bool]:
+def render_code_editor(callback_executer: Callable = lambda:None) -> tuple[str, str, str, bool]:
     """
     Render the code editor section.
     
