@@ -19,6 +19,13 @@ from .file_io import (
     file_exists,
     get_file_size,
 )
+from .common import (
+    DEFAULT_DB_FILENAME,
+    get_project_root,
+    get_storage_dir,
+    get_database_path,
+    ensure_sqlite_db_path,
+)
 
 __all__ = [
     # Database
@@ -42,4 +49,10 @@ __all__ = [
     "get_file_metadata",
     "file_exists",
     "get_file_size",
+    # Common
+    "DEFAULT_DB_FILENAME",
+    "get_project_root",
+    "get_storage_dir",
+    "get_database_path",
+    "ensure_sqlite_db_path",
 ]

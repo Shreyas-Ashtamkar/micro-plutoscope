@@ -2,13 +2,13 @@
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 from typing import Optional, List, Dict, Any, Generator
 
+from .common import ensure_sqlite_db_path, get_database_path
 from .hashing import generate_hash, verify_hash_format
 
 # Database configuration
-DB_PATH = Path(__file__).parent.parent / "Storage" / "plutoscope.db"
+DB_PATH = get_database_path()
 
 
 # Context managers and connection management
@@ -20,7 +20,7 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
     Yields:
         sqlite3.Connection with proper settings and cleanup
     """
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(ensure_sqlite_db_path(DB_PATH)))
     conn.row_factory = sqlite3.Row  # Return rows as dictionaries
     # Enable WAL mode for better concurrency with multiple users
     conn.execute("PRAGMA journal_mode=WAL;")
@@ -41,7 +41,7 @@ def get_connection() -> sqlite3.Connection:
     Returns:
         sqlite3.Connection with WAL mode and foreign keys enabled
     """
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(ensure_sqlite_db_path(DB_PATH)))
     conn.row_factory = sqlite3.Row  # Return rows as dictionaries
     # Enable WAL mode for better concurrency with multiple users
     conn.execute("PRAGMA journal_mode=WAL;")

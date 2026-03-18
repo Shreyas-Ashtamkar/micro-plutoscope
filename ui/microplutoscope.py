@@ -1,6 +1,7 @@
 """Main application module for Micro Plutoscope."""
 import streamlit as st
 from .components import render_sidebar, render_code_editor, render_output_section
+from utils import ensure_sqlite_db_path
 
 # move to utils later
 def callback_code_executer():
@@ -13,6 +14,7 @@ class App:
     
     def __init__(self):
         """Initialize the application."""
+        ensure_sqlite_db_path()
         self._configure_page()
     
     def _configure_page(self) -> None:
