@@ -1,5 +1,5 @@
 """UI module for Micro Plutoscope."""
-from .__main__ import App as FrontendMain
+from .streamlit_app import App as FrontendMain
 
 
 __all__ = ["FrontendMain"]
