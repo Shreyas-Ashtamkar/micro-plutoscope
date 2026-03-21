@@ -1,3 +1,4 @@
 streamlit==1.55.0
 streamlit-code-editor==0.1.22
 pytest==9.0.2
+psycopg2==2.9.11
