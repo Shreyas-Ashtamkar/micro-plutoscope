@@ -4,7 +4,7 @@ import streamlit as st
 from code_editor import code_editor
 
 
-def render_code_editor() -> tuple[str, str, bool]:
+def render_code_editor(code_executor:Callable=None) -> tuple[str, str, bool]:
     """
     Render the code editor section.
     
@@ -22,7 +22,7 @@ def render_code_editor() -> tuple[str, str, bool]:
             theme = st.selectbox("Theme", ["hc-black", "vs-dark", "vs-light"], key="theme_select")
         
         with col3:
-            run_button = st.button("▶ Run", use_container_width=True, type="primary")
+            run_button = st.button("▶ Run", use_container_width=True, type="primary", on_click=code_executor)
             
         editor_settings = {
             "custom_btns" :[
@@ -85,16 +85,10 @@ def render_code_editor() -> tuple[str, str, bool]:
         # Persist latest text whenever the editor sends data back (debounce or submit)
         if response and isinstance(response, dict):
             if response.get("text") is not None:
-                st.session_state["editor_code"] = response["text"]
+                st.session_state["editor_code"]     = response["text"]
+                st.session_state["editor_language"] = language
             if response.get("type") == "submit":
-                RUN_CLICKED = True
-
-        code_input = st.session_state.get("editor_code", "")
-
-        if run_button:
-            RUN_CLICKED = True
-        
-        return code_input, language, RUN_CLICKED
+                code_executor()
 
 
 def render_output_section() -> None:

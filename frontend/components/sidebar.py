@@ -2,7 +2,7 @@
 import streamlit as st
 
 
-def render_sidebar() -> dict:
+def render_sidebar(*args) -> dict:
     """
     Render the sidebar with navigation and code management.
     

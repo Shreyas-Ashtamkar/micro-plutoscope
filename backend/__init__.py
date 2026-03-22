@@ -1,5 +1,5 @@
 """Backend module for Micro Plutoscope."""
-from .engine import CodeExecutor
+from .code_executor import CodeExecutor
 
 
 __all__ = ["CodeExecutor"]

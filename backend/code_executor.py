@@ -1,18 +1,7 @@
-"""Code executor engine for Micro Plutoscope."""
+"""Code executor code_executor for Micro Plutoscope."""
 import sys
 from io import StringIO
-
-
-class SingletonMeta(type):
-    """Metaclass for singleton pattern."""
-    _instances = {}
-    
-    def __call__(cls, *args, **kwargs):
-        """Return existing instance or create new one."""
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
+from ._base import SingletonMeta
 
 
 class CodeExecutor(metaclass=SingletonMeta):
@@ -150,8 +139,3 @@ class CodeExecutor(metaclass=SingletonMeta):
     def run(cls, code: str, language: str = "python") -> str:
         """Run code via class method."""
         return cls()(code, language)
-
-
-if __name__ == "__main__":
-    ce = CodeExecutor(5)
-    ce()
