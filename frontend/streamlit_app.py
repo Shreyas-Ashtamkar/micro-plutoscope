@@ -2,11 +2,15 @@
 import streamlit as st
 from .components import render_sidebar, render_code_editor, render_output_section
 from utils import ensure_sqlite_db_path
+from backend.engine import CodeExecutor
 
 # move to utils later
-def callback_code_executer():
+def callback_code_executer(*args):
     """Callback function which will take the code from the session and execute it and store the output in session again"""
-    pass
+    code:str = args[0]
+    lang:str = args[1]
+    return CodeExecutor(timeout=10).run(code=code,language=lang)
+    # return f"Run {lang} code -\n{code}"
 
 
 class App:
@@ -34,8 +38,10 @@ class App:
         st.subheader("Micro Plutoscope")
         
         # Render code editor
-        render_code_editor(callback_code_executer)
+        code_input, language, run_button = render_code_editor()
         
+        if run_button:
+            st.session_state["output_text"] = callback_code_executer(code_input, language)
         
         # st.divider()
         

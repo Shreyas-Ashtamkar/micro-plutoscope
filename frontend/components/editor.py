@@ -4,13 +4,14 @@ import streamlit as st
 from code_editor import code_editor
 
 
-def render_code_editor(callback_executer: Callable = lambda:None) -> tuple[str, str, str, bool]:
+def render_code_editor() -> tuple[str, str, bool]:
     """
     Render the code editor section.
     
     Returns:
         tuple: Code input, language, theme, and run button state
     """
+    RUN_CLICKED = False
     with st.expander("Code", expanded=True):
         col1, col2, col3 = st.columns([1, 1, 0.4], vertical_alignment="bottom")
         
@@ -62,9 +63,11 @@ def render_code_editor(callback_executer: Callable = lambda:None) -> tuple[str, 
                 "info": [{"name": language, "style": {"width": "100px"}}],
             }
         }
+        
+        input_code = ""
 
-        code_editor(
-            code="",
+        response = code_editor(
+            code=input_code,
             height=[20, 40],
             key="code_editor",
             focus=True,
@@ -74,23 +77,24 @@ def render_code_editor(callback_executer: Callable = lambda:None) -> tuple[str, 
             options={
                 "showLineNumbers":True,
                 "showInvisibles":False
-            }
+            },
+            response_mode="debounce",
             # info=editor_settings["lang_info"],
         )
-        
-        code_input = ""
-        language = "python"
-        run_button = False
-        
-        if "code_editor" in st.session_state and st.session_state["code_editor"] is not None:
-            code_input = st.session_state["code_editor"].get("text", "")
-            if st.session_state["code_editor"].get("command") == "submit":
-                run_button = True
-        
+
+        # Persist latest text whenever the editor sends data back (debounce or submit)
+        if response and isinstance(response, dict):
+            if response.get("text") is not None:
+                st.session_state["editor_code"] = response["text"]
+            if response.get("type") == "submit":
+                RUN_CLICKED = True
+
+        code_input = st.session_state.get("editor_code", "")
+
         if run_button:
-            callback_executer()
+            RUN_CLICKED = True
         
-        return code_input, language, theme, run_button
+        return code_input, language, RUN_CLICKED
 
 
 def render_output_section() -> None:

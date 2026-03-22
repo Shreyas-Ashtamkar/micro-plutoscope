@@ -48,12 +48,17 @@ class CodeExecutor(metaclass=SingletonMeta):
             old_stdout = sys.stdout
             sys.stdout = StringIO()
             
-            # Execute the code
-            exec(code)
+            # Execute the code with safe namespace
+            namespace = {}
+            exec(code, namespace)
             
             # Get the output
             output = sys.stdout.getvalue()
             sys.stdout = old_stdout
+            
+            # If no output was captured, show success message
+            if not output.strip():
+                output = "Code executed successfully (no output)"
             
             self.output = output
             self.error = ""
@@ -121,7 +126,10 @@ class CodeExecutor(metaclass=SingletonMeta):
         if language == "python":
             return self.execute_python(code)
         elif language == "sql":
-            return self.execute_sql(code)
+            # SQL execution requires db_string - not supported without connection string
+            self.error = "SQL execution requires a database connection string"
+            self.success = False
+            return f"Error: {self.error}"
         else:
             self.error = f"Unsupported language: {language}"
             self.success = False
