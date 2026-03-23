@@ -11,7 +11,6 @@ def render_code_editor(code_executor:Callable=None) -> tuple[str, str, bool]:
     Returns:
         tuple: Code input, language, theme, and run button state
     """
-    RUN_CLICKED = False
     with st.expander("Code", expanded=True):
         col1, col2, col3 = st.columns([1, 1, 0.4], vertical_alignment="bottom")
         
