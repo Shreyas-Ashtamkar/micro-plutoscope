@@ -27,13 +27,16 @@ class App:
     
     def code_executor(self) -> bool:
         st.session_state["output_text"] = "loading..."
-        st.session_state["output_text"] = self._code_executor.run(code=st.session_state["editor_code"], language=st.session_state["editor_language"])
+        st.session_state["output_text"] = self._code_executor.run(
+            code = st.session_state["editor_code"], 
+            language = st.session_state["editor_language"]
+        )
         return (self._code_executor.error != "")
    
     def render(self) -> None:
         """Run the main application."""
         # Render sidebar
-        sidebar_actions = render_sidebar(self.saved_codes, self.recent_codes)
+        sidebar_actions = render_sidebar()
         
         # Render main content
         st.subheader("Micro Plutoscope")
