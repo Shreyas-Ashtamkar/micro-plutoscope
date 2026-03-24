@@ -1,7 +1,9 @@
 """Database operations and configuration for Micro Plutoscope."""
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Optional, List, Dict, Any, Generator
 
 from .common import ensure_sqlite_db_path, get_database_path
@@ -74,11 +76,18 @@ def initialize_database() -> None:
             CREATE TABLE IF NOT EXISTS files (
                 hash TEXT PRIMARY KEY NOT NULL,
                 path TEXT NOT NULL,
+                ispathabs INTEGER NOT NULL DEFAULT 0 CHECK(ispathabs IN (0, 1)),
                 content BLOB,
                 size INTEGER NOT NULL,
                 FOREIGN KEY (hash) REFERENCES "index"(hash) ON DELETE CASCADE
             )
         """)
+
+        # Backfill schema for existing databases created before ispathabs existed.
+        cursor.execute("PRAGMA table_info(files)")
+        files_columns = {row[1] for row in cursor.fetchall()}
+        if "ispathabs" not in files_columns:
+            cursor.execute("ALTER TABLE files ADD COLUMN ispathabs INTEGER NOT NULL DEFAULT 0")
         
         # Create indexes for common queries
         cursor.execute("""
@@ -103,14 +112,20 @@ def verify_schema() -> bool:
     """
     with get_db() as conn:
         cursor = conn.cursor()
-        
-        # Check if tables exist
+
+        # Check if tables exist.
         cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('index', 'files')"
         )
-        tables = [row[0] for row in cursor.fetchall()]
-    
-    return set(tables) == {'index', 'files'}
+        tables = {row[0] for row in cursor.fetchall()}
+        if tables != {"index", "files"}:
+            return False
+
+        # Ensure files table contains required path metadata columns.
+        cursor.execute("PRAGMA table_info(files)")
+        files_columns = {row[1] for row in cursor.fetchall()}
+
+    return {"hash", "path", "ispathabs", "content", "size"}.issubset(files_columns)
 
 
 # Helper functions for validation and data mapping
@@ -147,6 +162,15 @@ def _validate_important(important: int) -> None:
         raise ValueError("important must be 0 or 1")
 
 
+def _is_path_absolute(path: str) -> bool:
+    """Return True for absolute paths in either POSIX or Windows syntax."""
+    return (
+        os.path.isabs(path)
+        or PurePosixPath(path).is_absolute()
+        or PureWindowsPath(path).is_absolute()
+    )
+
+
 def _row_to_dict(row: sqlite3.Row, include_content: bool = True) -> Dict[str, Any]:
     """
     Convert a database row to a dictionary.
@@ -158,34 +182,10 @@ def _row_to_dict(row: sqlite3.Row, include_content: bool = True) -> Dict[str, An
     Returns:
         Dictionary with file data
     """
-    # Handle both metadata-only and full content queries
-    # Metadata-only: hash, file, purpose, created, modified, storage, important, path, size (9 fields)
-    # With content: hash, file, purpose, created, modified, storage, important, path, content, size (10 fields)
-    if len(row) == 9:  # Metadata only
-        return {
-            "hash": row[0],
-            "file": row[1],
-            "purpose": row[2],
-            "created": row[3],
-            "modified": row[4],
-            "storage": row[5],
-            "important": row[6],
-            "path": row[7],
-            "size": row[8],
-        }
-    else:  # With content (10 fields)
-        return {
-            "hash": row[0],
-            "file": row[1],
-            "purpose": row[2],
-            "created": row[3],
-            "modified": row[4],
-            "storage": row[5],
-            "important": row[6],
-            "path": row[7],
-            "content": row[8],
-            "size": row[9],
-        }
+    result = dict(row)
+    if not include_content:
+        result.pop("content", None)
+    return result
 
 
 def _execute_file_query(
@@ -254,6 +254,7 @@ def add_file(
     _validate_important(important)
     
     file_hash = generate_hash(filename)
+    is_path_abs = 1 if _is_path_absolute(path) else 0
     size = len(content) if content else 0
     
     with get_db() as conn:
@@ -272,10 +273,10 @@ def add_file(
             # Insert into files table
             cursor.execute(
                 """
-                INSERT INTO files (hash, path, content, size)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO files (hash, path, ispathabs, content, size)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (file_hash, path, content, size)
+                (file_hash, path, is_path_abs, content, size)
             )
             
             conn.commit()
@@ -299,7 +300,7 @@ def get_file_by_hash(file_hash: str) -> Optional[Dict[str, Any]]:
     
     query = """
         SELECT i.hash, i.file, i.purpose, i.created, i.modified, 
-               i.storage, i.important, f.path, f.content, f.size
+               i.storage, i.important, f.path, f.ispathabs, f.content, f.size
         FROM "index" i
         JOIN files f ON i.hash = f.hash
         WHERE i.hash = ?
@@ -391,7 +392,7 @@ def get_all_files(metadata_only: bool = True) -> List[Dict[str, Any]]:
     if metadata_only:
         query = """
             SELECT i.hash, i.file, i.purpose, i.created, i.modified, 
-                   i.storage, i.important, f.path, f.size
+                   i.storage, i.important, f.path, f.ispathabs, f.size
             FROM "index" i
             JOIN files f ON i.hash = f.hash
             ORDER BY i.created DESC
@@ -399,7 +400,7 @@ def get_all_files(metadata_only: bool = True) -> List[Dict[str, Any]]:
     else:
         query = """
             SELECT i.hash, i.file, i.purpose, i.created, i.modified, 
-                   i.storage, i.important, f.path, f.content, f.size
+                   i.storage, i.important, f.path, f.ispathabs, f.content, f.size
             FROM "index" i
             JOIN files f ON i.hash = f.hash
             ORDER BY i.created DESC
@@ -417,7 +418,7 @@ def get_important_files() -> List[Dict[str, Any]]:
     """
     query = """
         SELECT i.hash, i.file, i.purpose, i.created, i.modified, 
-               i.storage, i.important, f.path, f.size
+             i.storage, i.important, f.path, f.ispathabs, f.size
         FROM "index" i
         JOIN files f ON i.hash = f.hash
         WHERE i.important = 1

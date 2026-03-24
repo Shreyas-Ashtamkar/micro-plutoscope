@@ -36,7 +36,7 @@ class TestDatabaseInitialization:
         cursor.execute("PRAGMA table_info(files)")
         columns = {row[1] for row in cursor.fetchall()}
         
-        expected_columns = {"hash", "path", "content", "size"}
+        expected_columns = {"hash", "path", "ispathabs", "content", "size"}
         assert expected_columns.issubset(columns), f"Missing columns. Got: {columns}"
         conn.close()
 
@@ -150,6 +150,7 @@ class TestFileOperations:
         assert file_data["storage"] == "FS"
         assert file_data["important"] == 1
         assert file_data["path"] == "/path/to/.env"
+        assert file_data["ispathabs"] == 1
         assert file_data["size"] == 9
 
     def test_get_nonexistent_file_returns_none(self, clean_db):
