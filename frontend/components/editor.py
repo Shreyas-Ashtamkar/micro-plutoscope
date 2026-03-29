@@ -1,13 +1,13 @@
 """Code editor components for Micro Plutoscope app."""
 
-from typing import Callable
 import hashlib
+from typing import Callable
 import streamlit as st
 from code_editor import code_editor
 from backend import save_code
 
 
-def save_handler():
+def save_handler() -> None:
     """Save current code to database."""
     name = st.session_state.get("code_filename", "").strip()
     if not name:
@@ -17,7 +17,7 @@ def save_handler():
     if not code.strip():
         st.error("Cannot save empty code")
         return
-    lang = st.session_state.get("editor_language", "python")
+    lang = st.session_state.get("language_select", "python")
     file_hash, status = save_code(name, code, lang)
     if status in ("created", "updated"):
         st.session_state["saved_code_hash"] = hashlib.sha256(code.encode()).hexdigest()

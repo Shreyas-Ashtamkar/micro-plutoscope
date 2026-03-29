@@ -26,7 +26,7 @@ class App:
         st.session_state["output_text"] = "loading..."
         st.session_state["output_text"] = self._code_executor.run(
             code=st.session_state["editor_code"],
-            language=st.session_state["editor_language"],
+            language=st.session_state.get("language_select", "python"),
         )
         return self._code_executor.error != ""
 
@@ -49,5 +49,5 @@ class App:
         # Handle sidebar actions
         if sidebar_actions["new_code"]:
             st.info("New code created.")
-            
+
         st.write(st.session_state)
