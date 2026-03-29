@@ -3,6 +3,14 @@
 import hashlib
 import streamlit as st
 from backend import list_codes, load_code, delete_code
+from frontend.state import (
+    KEY_EDITOR_CODE,
+    KEY_EDITOR_FILENAME,
+    KEY_EDITOR_LANGUAGE,
+    KEY_FILE_LAST_LOADED,
+    KEY_FILE_PENDING,
+    KEY_FILE_SAVED_HASH,
+)
 
 
 def load_saved_code(filename: str) -> bool:
@@ -14,32 +22,33 @@ def load_saved_code(filename: str) -> bool:
     """
     data = load_code(filename)
     if data:
-        st.session_state["editor_code"] = data["content"]
-        st.session_state["code_filename"] = filename
-        st.session_state["saved_code_hash"] = hashlib.sha256(
+        st.session_state[KEY_EDITOR_CODE] = data["content"]
+        st.session_state[KEY_EDITOR_FILENAME] = filename
+        st.session_state[KEY_FILE_SAVED_HASH] = hashlib.sha256(
             data["content"].encode()
         ).hexdigest()
-        st.session_state["pending_filename"] = filename
-        st.session_state["language_select"] = data["language"]
+        st.session_state[KEY_FILE_PENDING] = filename
+        st.session_state[KEY_EDITOR_LANGUAGE] = data["language"]
         return True
     return False
 
 
-def clear_editor():
+def clear_editor() -> None:
     """Clear the editor and filename."""
-    st.session_state["editor_code"] = ""
-    st.session_state["code_filename"] = ""
-    st.session_state["saved_code_hash"] = None
-    st.session_state["pending_filename"] = None
-    st.session_state["language_select"] = "python"
+    st.session_state[KEY_EDITOR_CODE] = ""
+    st.session_state[KEY_EDITOR_FILENAME] = ""
+    st.session_state[KEY_FILE_SAVED_HASH] = None
+    st.session_state[KEY_FILE_PENDING] = None
+    st.session_state[KEY_FILE_LAST_LOADED] = None
+    st.session_state[KEY_EDITOR_LANGUAGE] = "python"
 
 
 def is_code_modified() -> bool:
     """Check if current code has been modified since last save."""
-    saved_hash = st.session_state.get("saved_code_hash")
+    saved_hash = st.session_state.get(KEY_FILE_SAVED_HASH)
     if saved_hash is None:
         return False
-    current_code = st.session_state.get("editor_code", "")
+    current_code = st.session_state.get(KEY_EDITOR_CODE, "")
     current_hash = hashlib.sha256(current_code.encode()).hexdigest()
     return current_hash != saved_hash
 
@@ -52,10 +61,6 @@ def render_sidebar(*args) -> dict:
         dict: User interactions from sidebar
     """
     st.sidebar.title("Menu")
-
-    # Initialize session state
-    if "pending_filename" not in st.session_state:
-        st.session_state["pending_filename"] = None
 
     # Top Section - New Code Button
     new_code = st.sidebar.button("🆕 New Code", use_container_width=True)
@@ -94,20 +99,17 @@ def render_sidebar(*args) -> dict:
         st.sidebar.write("No saved codes yet")
     else:
         for code in saved_codes:
-            key_load = f"load_{code['file']}"
-            key_del = f"del_{code['file']}"
-
             cols = st.sidebar.columns([4, 1])
             with cols[0]:
                 if st.button(
                     code["file"],
-                    key=key_load,
+                    key=f"load_{code['file']}",
                     use_container_width=True,
                 ):
                     load_saved_code(code["file"])
                     st.rerun()
             with cols[1]:
-                if st.button("🗑️", key=key_del, help="Delete"):
+                if st.button("🗑️", key=f"del_{code['file']}", help="Delete"):
                     result = delete_code(code["file"])
                     if result == "deleted":
                         st.success(f"Deleted: {code['file']}")

@@ -5,22 +5,35 @@ from typing import Callable
 import streamlit as st
 from code_editor import code_editor
 from backend import save_code
+from frontend.state import (
+    KEY_EDITOR_CODE,
+    KEY_EDITOR_FILENAME,
+    KEY_EDITOR_LANGUAGE,
+    KEY_EDITOR_THEME,
+    KEY_FILE_LAST_LOADED,
+    KEY_FILE_PENDING,
+    KEY_FILE_SAVED_HASH,
+    KEY_UI_OUTPUT,
+    KEY_UI_RESET_EDITOR,
+)
 
 
 def save_handler() -> None:
     """Save current code to database."""
-    name = st.session_state.get("code_filename", "").strip()
+    name = st.session_state.get(KEY_EDITOR_FILENAME, "").strip()
     if not name:
         st.error("Please enter a filename")
         return
-    code = st.session_state.get("editor_code", "")
+    code = st.session_state.get(KEY_EDITOR_CODE, "")
     if not code.strip():
         st.error("Cannot save empty code")
         return
-    lang = st.session_state.get("language_select", "python")
+    lang = st.session_state.get(KEY_EDITOR_LANGUAGE, "python")
     file_hash, status = save_code(name, code, lang)
     if status in ("created", "updated"):
-        st.session_state["saved_code_hash"] = hashlib.sha256(code.encode()).hexdigest()
+        st.session_state[KEY_FILE_SAVED_HASH] = hashlib.sha256(
+            code.encode()
+        ).hexdigest()
         if status == "created":
             st.success(f"Created: {file_hash[:16]}...")
         else:
@@ -36,18 +49,6 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
     Displays a code editor with language selection, theme toggle, filename input,
     and run/save buttons. Manages code persistence through session state.
     """
-    # Initialize session state for code tracking
-    if "editor_code" not in st.session_state:
-        st.session_state["editor_code"] = ""
-    if "saved_code_hash" not in st.session_state:
-        st.session_state["saved_code_hash"] = None
-    if "language_select" not in st.session_state:
-        st.session_state["language_select"] = "python"
-    if "_last_loaded_file" not in st.session_state:
-        st.session_state["_last_loaded_file"] = None
-    if "_should_reset_editor" not in st.session_state:
-        st.session_state["_should_reset_editor"] = False
-
     with st.expander("Code", expanded=True):
         col1, col2, col3, col4, col5 = st.columns(
             [1, 1, 1, 0.4, 0.4], vertical_alignment="bottom"
@@ -57,20 +58,18 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
             language = st.selectbox(
                 "Language",
                 ["sql", "python", "javascript", "json", "java"],
-                key="language_select",
+                key=KEY_EDITOR_LANGUAGE,
             )
 
         with col2:
             theme = st.selectbox(
-                "Theme", ["hc-black", "vs-dark", "vs-light"], key="theme_select"
+                "Theme", ["hc-black", "vs-dark", "vs-light"], key=KEY_EDITOR_THEME
             )
 
         with col3:
-            if "code_filename" not in st.session_state:
-                st.session_state["code_filename"] = ""
             st.text_input(
                 "Filename",
-                key="code_filename",
+                key=KEY_EDITOR_FILENAME,
                 placeholder="Enter filename...",
             )
 
@@ -125,22 +124,19 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
             },
         }
 
-        # Get code from session state (updated when loading from sidebar)
-        input_code = st.session_state.get("editor_code", "")
+        input_code = st.session_state[KEY_EDITOR_CODE]
 
-        # Check if we just loaded a file (pending_filename changed)
-        pending_filename = st.session_state.get("pending_filename", "")
-        last_loaded = st.session_state.get("_last_loaded_file")
+        # Detect a newly loaded file and arm the one-shot editor reset flag
+        pending = st.session_state[KEY_FILE_PENDING]
+        last_loaded = st.session_state[KEY_FILE_LAST_LOADED]
+        if pending != last_loaded:
+            st.session_state[KEY_FILE_LAST_LOADED] = pending
+            st.session_state[KEY_UI_RESET_EDITOR] = True
 
-        file_just_loaded = pending_filename != last_loaded
-        if file_just_loaded:
-            st.session_state["_last_loaded_file"] = pending_filename
-            st.session_state["_should_reset_editor"] = True
-
-        # Only allow reset on first render after file load
-        should_allow_reset = st.session_state.get("_should_reset_editor", False)
-        if should_allow_reset:
-            st.session_state["_should_reset_editor"] = False  # One-time use
+        # Consume the reset flag — only active for a single render pass
+        should_reset = st.session_state[KEY_UI_RESET_EDITOR]
+        if should_reset:
+            st.session_state[KEY_UI_RESET_EDITOR] = False
 
         response = code_editor(
             code=input_code,
@@ -152,28 +148,25 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
             buttons=editor_settings["custom_btns"],
             options={"showLineNumbers": True, "showInvisibles": False},
             response_mode="debounce",
-            allow_reset=should_allow_reset,
+            allow_reset=should_reset,
         )
 
-        # Persist latest text whenever the editor sends data back (debounce or submit)
-        # Only update on actual user interaction (type="change" or "submit"), not on mount
+        # Persist latest text on user interaction (change or submit), not on mount
         if (
             response
             and isinstance(response, dict)
             and response.get("type") in ("change", "submit")
         ):
             if response.get("text") is not None:
-                st.session_state["editor_code"] = response["text"]
+                st.session_state[KEY_EDITOR_CODE] = response["text"]
             if response.get("type") == "submit":
                 code_executor()
 
 
 def render_output_section() -> None:
     """Render the output section."""
-    if (
-        "output_text" in st.session_state
-        and st.session_state["output_text"] is not None
-    ):
-        st.code(st.session_state["output_text"], language="bash")
+    output = st.session_state.get(KEY_UI_OUTPUT)
+    if output is not None:
+        st.code(output, language="bash")
     else:
         st.code("Output will appear here...", language="bash")
