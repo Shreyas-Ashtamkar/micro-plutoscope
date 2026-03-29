@@ -39,7 +39,6 @@ def clear_editor() -> None:
     st.session_state[KEY_EDITOR_FILENAME] = ""
     st.session_state[KEY_FILE_SAVED_HASH] = None
     st.session_state[KEY_FILE_PENDING] = None
-    st.session_state[KEY_FILE_LAST_LOADED] = None
     st.session_state[KEY_EDITOR_LANGUAGE] = "python"
 
 
