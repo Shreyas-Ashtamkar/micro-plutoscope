@@ -1,37 +1,98 @@
 """Code editor components for Micro Plutoscope app."""
+
+import hashlib
 from typing import Callable
 import streamlit as st
 from code_editor import code_editor
+from backend import save_code
+from frontend.state import (
+    KEY_EDITOR_CODE,
+    KEY_EDITOR_FILENAME,
+    KEY_EDITOR_LANGUAGE,
+    KEY_EDITOR_THEME,
+    KEY_FILE_LAST_LOADED,
+    KEY_FILE_PENDING,
+    KEY_FILE_SAVED_HASH,
+    KEY_UI_OUTPUT,
+    KEY_UI_RESET_EDITOR,
+)
 
 
-def render_code_editor(code_executor:Callable=None) -> tuple[str, str, bool]:
+def save_handler() -> None:
+    """Save current code to database."""
+    name = st.session_state.get(KEY_EDITOR_FILENAME, "").strip()
+    if not name:
+        st.error("Please enter a filename")
+        return
+    code = st.session_state.get(KEY_EDITOR_CODE, "")
+    if not code.strip():
+        st.error("Cannot save empty code")
+        return
+    lang = st.session_state.get(KEY_EDITOR_LANGUAGE, "python")
+    file_hash, status = save_code(name, code, lang)
+    if status in ("created", "updated"):
+        st.session_state[KEY_FILE_SAVED_HASH] = hashlib.sha256(
+            code.encode()
+        ).hexdigest()
+        if status == "created":
+            st.success(f"Created: {file_hash[:16]}...")
+        else:
+            st.success(f"Updated: {file_hash[:16]}...")
+    else:
+        st.info("No changes to save")
+
+
+def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -> None:
     """
     Render the code editor section.
-    
-    Returns:
-        tuple: Code input, language, theme, and run button state
+
+    Displays a code editor with language selection, theme toggle, filename input,
+    and run/save buttons. Manages code persistence through session state.
     """
     with st.expander("Code", expanded=True):
-        col1, col2, col3 = st.columns([1, 1, 0.4], vertical_alignment="bottom")
-        
+        col1, col2, col3, col4, col5 = st.columns(
+            [1, 1, 1, 0.4, 0.4], vertical_alignment="bottom"
+        )
+
         with col1:
-            language = st.selectbox("Language", ["sql", "python", "javascript", "json", "java"], key="language_select")
-        
+            language = st.selectbox(
+                "Language",
+                ["sql", "python", "javascript", "json", "java"],
+                key=KEY_EDITOR_LANGUAGE,
+            )
+
         with col2:
-            theme = st.selectbox("Theme", ["hc-black", "vs-dark", "vs-light"], key="theme_select")
-        
+            theme = st.selectbox(
+                "Theme", ["hc-black", "vs-dark", "vs-light"], key=KEY_EDITOR_THEME
+            )
+
         with col3:
-            run_button = st.button("▶ Run", use_container_width=True, type="primary", on_click=code_executor)
-            
+            st.text_input(
+                "Filename",
+                key=KEY_EDITOR_FILENAME,
+                placeholder="Enter filename...",
+            )
+
+        with col4:
+            st.button(
+                "▶ Run",
+                use_container_width=True,
+                type="primary",
+                on_click=code_executor,
+            )
+
+        with col5:
+            st.button("💾 Save", use_container_width=True, on_click=save_handler)
+
         editor_settings = {
-            "custom_btns" :[
+            "custom_btns": [
                 {
                     "name": "copy",
                     "feather": "Copy",
                     "hasText": True,
-                    "showWithIcon":True,
+                    "showWithIcon": True,
                     "commands": ["copyAll"],
-                    "style": {"top":"0.5rem", "right": "0.4rem"},
+                    "style": {"top": "0.5rem", "right": "0.4rem"},
                 },
                 {
                     "name": "Run",
@@ -43,7 +104,7 @@ def render_code_editor(code_executor:Callable=None) -> tuple[str, str, bool]:
                     "style": {"bottom": "0.44rem", "right": "0.4rem"},
                 },
             ],
-            "lang_info" : {
+            "lang_info": {
                 "name": "language info",
                 "css": "\nbackground-color: #bee1e5;\n\nbody > #root .ace-streamlit-dark~& {\n   background-color: #262830;\n}\n\n.ace-streamlit-dark~& span {\n   color: #fff;\n    opacity: 0.6;\n}\n\nspan {\n   color: #000;\n    opacity: 0.5;\n}\n\n.code_editor-info.message {\n    width: inherit;\n    margin-right: 75px;\n    order: 2;\n    text-align: center;\n    opacity: 0;\n    transition: opacity 0.7s ease-out;\n}\n\n.code_editor-info.message.show {\n    opacity: 0.6;\n}\n\n.ace-streamlit-dark~& .code_editor-info.message.show {\n    opacity: 0.5;\n}\n",
                 "style": {
@@ -60,10 +121,22 @@ def render_code_editor(code_executor:Callable=None) -> tuple[str, str, bool]:
                     "zIndex": "9993",
                 },
                 "info": [{"name": language, "style": {"width": "100px"}}],
-            }
+            },
         }
-        
-        input_code = ""
+
+        input_code = st.session_state[KEY_EDITOR_CODE]
+
+        # Detect a newly loaded file and arm the one-shot editor reset flag
+        pending = st.session_state[KEY_FILE_PENDING]
+        last_loaded = st.session_state[KEY_FILE_LAST_LOADED]
+        if pending != last_loaded:
+            st.session_state[KEY_FILE_LAST_LOADED] = pending
+            st.session_state[KEY_UI_RESET_EDITOR] = True
+
+        # Consume the reset flag — only active for a single render pass
+        should_reset = st.session_state[KEY_UI_RESET_EDITOR]
+        if should_reset:
+            st.session_state[KEY_UI_RESET_EDITOR] = False
 
         response = code_editor(
             code=input_code,
@@ -73,28 +146,27 @@ def render_code_editor(code_executor:Callable=None) -> tuple[str, str, bool]:
             theme=theme,
             lang=language,
             buttons=editor_settings["custom_btns"],
-            options={
-                "showLineNumbers":True,
-                "showInvisibles":False
-            },
+            options={"showLineNumbers": True, "showInvisibles": False},
             response_mode="debounce",
-            # info=editor_settings["lang_info"],
+            allow_reset=should_reset,
         )
 
-        # Persist latest text whenever the editor sends data back (debounce or submit)
-        if response and isinstance(response, dict):
+        # Persist latest text on user interaction (change or submit), not on mount
+        if (
+            response
+            and isinstance(response, dict)
+            and response.get("type") in ("change", "submit")
+        ):
             if response.get("text") is not None:
-                st.session_state["editor_code"]     = response["text"]
-                st.session_state["editor_language"] = language
+                st.session_state[KEY_EDITOR_CODE] = response["text"]
             if response.get("type") == "submit":
                 code_executor()
 
 
 def render_output_section() -> None:
     """Render the output section."""
-    # with st.expander("Output:", expanded=True):
-    if "output_text" in st.session_state and st.session_state["output_text"] is not None:
-        st.code(st.session_state["output_text"], language="bash")
+    output = st.session_state.get(KEY_UI_OUTPUT)
+    if output is not None:
+        st.code(output, language="bash")
     else:
         st.code("Output will appear here...", language="bash")
-        
