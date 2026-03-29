@@ -10,6 +10,7 @@ from frontend.state import (
     KEY_FILE_LAST_LOADED,
     KEY_FILE_PENDING,
     KEY_FILE_SAVED_HASH,
+    KEY_UI_OUTPUT,
 )
 
 
@@ -29,6 +30,7 @@ def load_saved_code(filename: str) -> bool:
         ).hexdigest()
         st.session_state[KEY_FILE_PENDING] = filename
         st.session_state[KEY_EDITOR_LANGUAGE] = data["language"]
+        st.session_state[KEY_UI_OUTPUT] = None
         return True
     return False
 
@@ -40,6 +42,7 @@ def clear_editor() -> None:
     st.session_state[KEY_FILE_SAVED_HASH] = None
     st.session_state[KEY_FILE_PENDING] = None
     st.session_state[KEY_EDITOR_LANGUAGE] = "python"
+    st.session_state[KEY_UI_OUTPUT] = None
 
 
 def is_code_modified() -> bool:
