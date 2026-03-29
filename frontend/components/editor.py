@@ -43,6 +43,10 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
         st.session_state["saved_code_hash"] = None
     if "language_select" not in st.session_state:
         st.session_state["language_select"] = "python"
+    if "_last_loaded_file" not in st.session_state:
+        st.session_state["_last_loaded_file"] = None
+    if "_should_reset_editor" not in st.session_state:
+        st.session_state["_should_reset_editor"] = False
 
     with st.expander("Code", expanded=True):
         col1, col2, col3, col4, col5 = st.columns(
@@ -124,6 +128,20 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
         # Get code from session state (updated when loading from sidebar)
         input_code = st.session_state.get("editor_code", "")
 
+        # Check if we just loaded a file (pending_filename changed)
+        pending_filename = st.session_state.get("pending_filename", "")
+        last_loaded = st.session_state.get("_last_loaded_file")
+
+        file_just_loaded = pending_filename != last_loaded
+        if file_just_loaded:
+            st.session_state["_last_loaded_file"] = pending_filename
+            st.session_state["_should_reset_editor"] = True
+
+        # Only allow reset on first render after file load
+        should_allow_reset = st.session_state.get("_should_reset_editor", False)
+        if should_allow_reset:
+            st.session_state["_should_reset_editor"] = False  # One-time use
+
         response = code_editor(
             code=input_code,
             height=[20, 40],
@@ -134,6 +152,7 @@ def render_code_editor(code_executor: Callable = lambda *args, **kwargs: None) -
             buttons=editor_settings["custom_btns"],
             options={"showLineNumbers": True, "showInvisibles": False},
             response_mode="debounce",
+            allow_reset=should_allow_reset,
         )
 
         # Persist latest text whenever the editor sends data back (debounce or submit)

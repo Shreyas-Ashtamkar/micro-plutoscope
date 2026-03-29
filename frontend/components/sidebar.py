@@ -19,6 +19,7 @@ def load_saved_code(filename: str) -> bool:
         st.session_state["saved_code_hash"] = hashlib.sha256(
             data["content"].encode()
         ).hexdigest()
+        st.session_state["pending_filename"] = filename
         st.session_state["language_select"] = data["language"]
         return True
     return False
@@ -29,6 +30,7 @@ def clear_editor():
     st.session_state["editor_code"] = ""
     st.session_state["code_filename"] = ""
     st.session_state["saved_code_hash"] = None
+    st.session_state["pending_filename"] = None
     st.session_state["language_select"] = "python"
 
 
@@ -50,6 +52,10 @@ def render_sidebar(*args) -> dict:
         dict: User interactions from sidebar
     """
     st.sidebar.title("Menu")
+
+    # Initialize session state
+    if "pending_filename" not in st.session_state:
+        st.session_state["pending_filename"] = None
 
     # Top Section - New Code Button
     new_code = st.sidebar.button("🆕 New Code", use_container_width=True)
