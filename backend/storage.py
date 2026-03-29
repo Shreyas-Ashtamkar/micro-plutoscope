@@ -7,6 +7,7 @@ from utils.database import (
     get_file_by_hash,
     add_file,
     update_file_content,
+    update_file_metadata,
     delete_file,
     get_all_files,
 )
@@ -30,11 +31,18 @@ def save_code(name: str, content: str, language: str) -> tuple[str, str]:
     existing = get_file_by_hash(file_hash)
 
     if existing:
-        if existing.get("content") == content_bytes:
+        language_changed = existing.get("purpose") != language
+        content_changed = existing.get("content") != content_bytes
+
+        if not content_changed and not language_changed:
             return (file_hash, "unchanged")
-        else:
+
+        if content_changed:
             update_file_content(file_hash, content_bytes)
-            return (file_hash, "updated")
+        if language_changed:
+            update_file_metadata(file_hash, purpose=language)
+
+        return (file_hash, "updated")
     else:
         add_file(
             filename=name,
@@ -62,7 +70,7 @@ def load_code(name: str) -> dict | None:
     if result and result.get("content"):
         return {
             "content": result["content"].decode("utf-8"),
-            "language": result.get("purpose", "python"),
+            "language": result.get("purpose") or "python",
         }
     return None
 
