@@ -1,4 +1,4 @@
-"""Code executor code_executor for Micro Plutoscope."""
+"""Code execution engine for Micro Plutoscope."""
 import sys
 from io import StringIO
 from ._base import SingletonMeta
